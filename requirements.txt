@@ -1,2 +1,6 @@
 xadmin
+# 2.0分支 https://github.com/sshwsfc/xadmin.git
 django
+pandas
+Numpy
+matplotlib
