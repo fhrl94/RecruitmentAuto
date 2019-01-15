@@ -30,12 +30,12 @@ class ChoicesWidgetCustom(Widget):
     将数据中<choices>翻译为<人类语言>
     """
     choices = (('0', '上午'), ('1', '下午'))
-    interview_date_time_choices = [one for one in zip(*choices)]
 
     def __init__(self, choices=None):
         if choices:
             assert choices[0][0], "必须是 2 维元组"
             self.choices = choices
+        self.interview_date_time_choices = [one for one in zip(*choices)]
         pass
 
     def render(self, value, obj=None):
@@ -49,6 +49,7 @@ class ChoicesWidgetCustom(Widget):
             return None
         if value in self.interview_date_time_choices[1]:
             return self.interview_date_time_choices[0][self.interview_date_time_choices[1].index(value)]
+        raise UserWarning("<{value}>格式错误".format(value=value))
 
 
 class IntegerWidgetCustom(IntegerWidget):
