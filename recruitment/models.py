@@ -129,7 +129,7 @@ class PositionChargeInformation(models.Model):
 
 class Position(models.Model):
     belong_company = models.ForeignKey(Company, verbose_name='所属公司',
-                                       on_delete=models.PROTECT, limit_choices_to={'company_status': True})
+                                       on_delete=models.CASCADE, limit_choices_to={'company_status': True})
     position_name = models.CharField(verbose_name='应聘岗位名称', max_length=100)
     position_coding = models.CharField(verbose_name='应聘岗位编码', max_length=10, unique=True, null=True)
     # belong_position_charge = models.ForeignKey(PositionChargeInformation, verbose_name='所属负责人',

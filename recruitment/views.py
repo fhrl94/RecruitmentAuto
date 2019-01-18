@@ -27,7 +27,7 @@ def parse_interviewee_info():
                                                      'graduation_status'], )
     df_interview_record = read_frame(IntervieweeRecord.objects.all(),
                                      fieldnames=['interviewee_name', 'interviewee_gender', 'interviewee_tel',
-                                                 'graduation_status'], )
+                                                 'graduation_status', 'id'], )
     # df = df_interview_info.append(df_interview_result, sort=True).append(
     #     df_interview_enter_info, sort=True).reset_index(drop=True).drop_duplicates(
     #     subset=['interviewee_name', 'interviewee_gender', 'interviewee_tel'])
@@ -35,24 +35,29 @@ def parse_interviewee_info():
         [df_interview_result, df_interview_info, df_interview_enter_info], ignore_index=True, sort=False
     ).drop_duplicates(
             subset=['interviewee_name', 'interviewee_gender', 'interviewee_tel'])
-    # df.to_excel('123.xls')
-    df_records = pd.concat([df, df_interview_record], sort=True).drop_duplicates(
+    df_records = pd.concat([df, df_interview_record], sort=True, keys=['new', 'old']).drop_duplicates(
         keep=False, subset=['interviewee_name', 'interviewee_gender', 'interviewee_tel'])
-    # df_records.to_excel('123.xls')
-    interviewee_record_ins_list = []
-    _choices = [one for one in zip(*gender_choices)]
-    for index, row in df_records.iterrows():
-        interviewee_record_ins = IntervieweeRecord()
-        interviewee_record_ins.interviewee_name = row['interviewee_name']
-        if row['interviewee_gender'] in _choices[1]:
-            interviewee_record_ins.interviewee_gender = _choices[0][_choices[1].index(row['interviewee_gender'])]
-        interviewee_record_ins.interviewee_tel = row['interviewee_tel']
-        if pd.isnull(row['graduation_status']):
-            interviewee_record_ins.graduation_status = None
-        else:
-            interviewee_record_ins.graduation_status = row['graduation_status']
-        interviewee_record_ins_list.append(interviewee_record_ins)
-    IntervieweeRecord.objects.bulk_create(interviewee_record_ins_list)
+    # df_records.to_clipboard()
+    # 删除旧数据
+    model_storage_old_delete(df_records, IntervieweeRecord, 'id')
+    # 新数据保存
+    try:
+        interviewee_record_ins_list = []
+        _choices = [one for one in zip(*gender_choices)]
+        for index, row in df_records.loc['new'].iterrows():
+            interviewee_record_ins = IntervieweeRecord()
+            interviewee_record_ins.interviewee_name = row['interviewee_name']
+            if row['interviewee_gender'] in _choices[1]:
+                interviewee_record_ins.interviewee_gender = _choices[0][_choices[1].index(row['interviewee_gender'])]
+            interviewee_record_ins.interviewee_tel = row['interviewee_tel']
+            if pd.isnull(row['graduation_status']):
+                interviewee_record_ins.graduation_status = None
+            else:
+                interviewee_record_ins.graduation_status = row['graduation_status']
+            interviewee_record_ins_list.append(interviewee_record_ins)
+        IntervieweeRecord.objects.bulk_create(interviewee_record_ins_list)
+    except KeyError:
+        pass
     print("人员信息已解析")
 
 def parse_company():
@@ -64,16 +69,26 @@ def parse_company():
     df_interview_result = read_frame(InterviewResult.objects.all(), fieldnames=['company', ], )
     df_interview_enter_info = read_frame(IntervieweeEnterInformation.objects.all(), fieldnames=['company', ], )
     df_company = read_frame(
-        Company.objects.all(), fieldnames=['company_name', ], ).rename(columns={'company_name': 'company'})
-    df = df_interview_info.append(df_interview_result).append(df_interview_enter_info).reset_index(drop=True)
-    df_records = df.drop_duplicates().append(df_company).drop_duplicates(keep=False,)
-    company_ins_list = []
-    for index, row in df_records.iterrows():
-        company_ins = Company()
-        company_ins.company_name = row['company']
-        company_ins.company_status = True
-        company_ins_list.append(company_ins)
-    Company.objects.bulk_create(company_ins_list)
+        Company.objects.all(), fieldnames=['company_name', 'id'], ).rename(columns={'company_name': 'company'})
+    df = pd.concat(
+        [df_interview_result, df_interview_info, df_interview_enter_info], ignore_index=True, sort=False
+    ).drop_duplicates(
+            subset=['company', ])
+    df_records = pd.concat([df, df_company], sort=True, keys=['new', 'old']).drop_duplicates(
+        keep=False, subset=['company', ])
+    # 删除旧数据
+    model_storage_old_delete(df_records, Company, 'id')
+    # 新数据保存
+    try:
+        company_ins_list = []
+        for index, row in df_records.loc['new'].iterrows():
+            company_ins = Company()
+            company_ins.company_name = row['company']
+            company_ins.company_status = True
+            company_ins_list.append(company_ins)
+        Company.objects.bulk_create(company_ins_list)
+    except KeyError:
+        pass
     print("公司名称已解析")
     pass
 
@@ -87,17 +102,27 @@ def parse_position_charge_info():
     df_interview_enter_info = read_frame(IntervieweeEnterInformation.objects.all(),
                                          fieldnames=['position_charge_name', 'position_charge_tel'], )
     df_position_charge_info = read_frame(PositionChargeInformation.objects.all(),
-                                         fieldnames=['position_charge_name', 'position_charge_tel'], )
-    df = df_interview_info.append(df_interview_enter_info).reset_index(drop=True)
-    df_records = df.drop_duplicates().append(df_position_charge_info).drop_duplicates(keep=False,)
-    position_charge_info_ins_list = []
-    for index, row in df_records.iterrows():
-        position_charge_info_ins = PositionChargeInformation()
-        position_charge_info_ins.position_charge_name = row['position_charge_name']
-        position_charge_info_ins.position_charge_tel = row['position_charge_tel']
-        position_charge_info_ins.position_charge_status = True
-        position_charge_info_ins_list.append(position_charge_info_ins)
-    PositionChargeInformation.objects.bulk_create(position_charge_info_ins_list)
+                                         fieldnames=['position_charge_name', 'position_charge_tel', 'id'], )
+    df = pd.concat(
+        [df_interview_info, df_interview_enter_info], ignore_index=True, sort=False
+    ).drop_duplicates(
+            subset=['position_charge_name', 'position_charge_tel'])
+    df_records = pd.concat([df, df_position_charge_info], sort=True, keys=['new', 'old']).drop_duplicates(
+        keep=False, subset=['position_charge_name', 'position_charge_tel'])
+    # 删除旧数据
+    model_storage_old_delete(df_records, PositionChargeInformation, 'id')
+    # 新数据保存
+    try:
+        position_charge_info_ins_list = []
+        for index, row in df_records.loc['new'].iterrows():
+            position_charge_info_ins = PositionChargeInformation()
+            position_charge_info_ins.position_charge_name = row['position_charge_name']
+            position_charge_info_ins.position_charge_tel = row['position_charge_tel']
+            position_charge_info_ins.position_charge_status = True
+            position_charge_info_ins_list.append(position_charge_info_ins)
+        PositionChargeInformation.objects.bulk_create(position_charge_info_ins_list)
+    except KeyError:
+        pass
     print("招聘人员信息已解析")
     pass
 
@@ -113,21 +138,30 @@ def parse_position():
     df_interview_enter_info = read_frame(IntervieweeEnterInformation.objects.all(),
                                          fieldnames=['interview_position', 'company'], )
     df_position = read_frame(Position.objects.all(),
-                             fieldnames=['position_name', 'belong_company__company_name'], )
+                             fieldnames=['position_name', 'belong_company__company_name', 'id'], )
     df_position = df_position.rename(columns={'position_name': 'interview_position',
                                               'belong_company__company_name': 'company',
                                               })
-    df = df_interview_info.append(df_interview_result).append(df_interview_enter_info).reset_index(drop=True)
-    df_records = df.drop_duplicates().append(df_position)
-    df_records = df_records.drop_duplicates(keep=False,)
-    position_ins_list = []
-    for index, row in df_records.iterrows():
-        position_ins = Position()
-        position_ins.position_name = row['interview_position']
-        position_ins.belong_company = Company.objects.get(company_name=row['company'])
-        position_ins.position_status = True
-        position_ins_list.append(position_ins)
-    Position.objects.bulk_create(position_ins_list)
+    df = pd.concat(
+        [df_interview_info, df_interview_result, df_interview_enter_info], ignore_index=True, sort=False
+    ).drop_duplicates(
+            subset=['interview_position', 'company'])
+    df_records = pd.concat([df, df_position], sort=True, keys=['new', 'old']).drop_duplicates(
+        keep=False, subset=['interview_position', 'company'])
+    # 删除旧数据
+    model_storage_old_delete(df_records, Position, 'id')
+    # 新数据保存
+    try:
+        position_ins_list = []
+        for index, row in df_records.loc['new'].iterrows():
+            position_ins = Position()
+            position_ins.position_name = row['interview_position']
+            position_ins.belong_company = Company.objects.get(company_name=row['company'])
+            position_ins.position_status = True
+            position_ins_list.append(position_ins)
+        Position.objects.bulk_create(position_ins_list)
+    except KeyError:
+        pass
     print("岗位信息已解析")
 
 #  渠道解析
@@ -144,17 +178,27 @@ def parse_interview_channel():
     df_interview_enter_info = read_frame(IntervieweeEnterInformation.objects.all(),
                                          fieldnames=fieldnames, )
     df_interview_channel_info = read_frame(InterviewChannel.objects.all(),
-                                           fieldnames=['interview_channel_name', ], ).rename(
+                                           fieldnames=['interview_channel_name', 'id'], ).rename(
         columns={'interview_channel_name': 'interview_channel'})
-    df = df_interview_info.append(df_interview_enter_info).append(df_interview_result_info).reset_index(drop=True)
-    df_records = df.drop_duplicates().append(df_interview_channel_info).drop_duplicates(keep=False,)
-    interview_channel_info_ins_list = []
-    for index, row in df_records.iterrows():
-        interview_channel_ins = InterviewChannel()
-        interview_channel_ins.interview_channel_name = row['interview_channel']
-        interview_channel_ins.interview_channel_status = True
-        interview_channel_info_ins_list.append(interview_channel_ins)
-    InterviewChannel.objects.bulk_create(interview_channel_info_ins_list)
+    df = pd.concat(
+        [df_interview_info, df_interview_result_info, df_interview_enter_info], ignore_index=True, sort=False
+    ).drop_duplicates(
+            subset=fieldnames)
+    df_records = pd.concat([df, df_interview_channel_info], sort=True, keys=['new', 'old']).drop_duplicates(
+        keep=False, subset=fieldnames)
+    # 删除旧数据
+    model_storage_old_delete(df_records, InterviewChannel, 'id')
+    # 新数据保存
+    try:
+        interview_channel_info_ins_list = []
+        for index, row in df_records.loc['new'].iterrows():
+            interview_channel_ins = InterviewChannel()
+            interview_channel_ins.interview_channel_name = row['interview_channel']
+            interview_channel_ins.interview_channel_status = True
+            interview_channel_info_ins_list.append(interview_channel_ins)
+        InterviewChannel.objects.bulk_create(interview_channel_info_ins_list)
+    except KeyError:
+        pass
     # print(df_records)
     print("渠道解析信息已解析")
 
@@ -165,17 +209,27 @@ def parse_interviewer():
     df_interviewer_second = read_frame(InterviewResult.objects.filter(
         ~Q(interviewer_second='')).all(), fieldnames=['interviewer_second', ], ).rename(
         columns={'interviewer_second': 'interviewer'})
-    df_interviewer = read_frame(Interviewer.objects.all(), fieldnames=['interviewer_name', ]).rename(
+    df_interviewer = read_frame(Interviewer.objects.all(), fieldnames=['interviewer_name', 'id']).rename(
         columns={'interviewer_name': 'interviewer'})
-    df = df_interviewer_first.append(df_interviewer_second).drop_duplicates()
-    df_records = df.append(df_interviewer).drop_duplicates(keep=False).dropna()
-    interviewer_ins_list = []
-    for index, row in df_records.iterrows():
-        interviewer_ins = Interviewer()
-        interviewer_ins.interviewer_name = row['interviewer']
-        interviewer_ins.interviewer_status = True
-        interviewer_ins_list.append(interviewer_ins)
-    Interviewer.objects.bulk_create(interviewer_ins_list)
+    df = pd.concat(
+        [df_interviewer_first, df_interviewer_second, ], ignore_index=True, sort=False
+    ).drop_duplicates(
+            subset=['interviewer', ])
+    df_records = pd.concat([df, df_interviewer], sort=True, keys=['new', 'old']).drop_duplicates(
+        keep=False, subset=['interviewer', ])
+    # 删除旧数据
+    model_storage_old_delete(df_records, Interviewer, 'id')
+    # 新数据保存
+    try:
+        interviewer_ins_list = []
+        for index, row in df_records.loc['new'].iterrows():
+            interviewer_ins = Interviewer()
+            interviewer_ins.interviewer_name = row['interviewer']
+            interviewer_ins.interviewer_status = True
+            interviewer_ins_list.append(interviewer_ins)
+        Interviewer.objects.bulk_create(interviewer_ins_list)
+    except KeyError:
+        pass
     print('面试官解析完成')
     pass
 
@@ -286,13 +340,17 @@ def parse_interview_result():
         print("无数据删除")
         pass
 
-    #  复试结果创建
-    interview_record_ins_list += interview_second_storage(difference_df.loc['new'])
-    #  初试结果创建
-    interview_record_ins_list += interview_first_storage(difference_df.loc['new'])
-    #  存储新增数据
-    print("新增{num}条数据".format(num=len(interview_record_ins_list)))
-    InterviewRecord.objects.bulk_create(interview_record_ins_list)
+    try:
+        #  复试结果创建
+        interview_record_ins_list += interview_second_storage(difference_df.loc['new'])
+        #  初试结果创建
+        interview_record_ins_list += interview_first_storage(difference_df.loc['new'])
+        #  存储新增数据
+        print("新增{num}条数据".format(num=len(interview_record_ins_list)))
+        InterviewRecord.objects.bulk_create(interview_record_ins_list)
+    except KeyError:
+        print("无新增数据")
+
     # df_interview_result.to_clipboard()
     pass
 
@@ -348,4 +406,23 @@ def interview_first_storage(df_interview_result):
     # InterviewRecord.objects.bulk_create(interview_record_ins_list)
     print("初试结果已解析")
     return interview_record_ins_list
+    pass
+
+def model_storage_old_delete(difference_df, model, f_id):
+    """
+    删除错误信息
+    :param difference_df:
+    :param model:
+    :param f_id:
+    :return:
+    """
+    try:
+        for index, row in difference_df.loc['old'].iterrows():
+            print("错误数据删除")
+            print(difference_df.loc['old'].loc[index])
+            model.objects.get(pk=row[f_id]).delete()
+        print("新增{num}条数据".format(num=len(difference_df.loc['old'])))
+    except KeyError:
+        print("无数据删除")
+        pass
     pass
