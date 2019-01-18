@@ -1,0 +1,41 @@
+# 部署环境为 centos 7
+
+# 开机自启动
+# systemctl enable /root/RecruitmentAuto/recruitment_uwsgi.service
+
+# 取消开机自启动
+# systemctl disable /root/RecruitmentAuto/recruitment_uwsgi.service
+
+# 启动/重启/停止/查看服务
+# systemctl start recruitment_uwsgi.service
+# systemctl restart recruitment_uwsgi.service
+# systemctl stop recruitment_uwsgi.service
+# systemctl status recruitment_uwsgi.service
+
+# uwsgi3 必须要存在, 因为使用的是 Python3.6 版本, 所以需要 uWSGI3 , 可以去官网下载
+# ExecStart=/usr/bin/uwsgi3
+
+# 日志存在路径, 路径必须存在
+# --logto /root/RecruitmentAuto/log/recruitment.log --log-maxsize 1024000
+
+# 通过配置文件<report_generation_uwsgi.ini>启动, 必须存在
+# --ini /root/RecruitmentAuto/recruitment_uwsgi.ini
+
+# 参数配置参考 http://blog.51cto.com/littledevil/1912570
+# 可以百度 <centos7 service 配置>
+
+[Unit]
+Description=uWSGI recruitment
+Before=nginx.service
+After=syslog.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/uwsgi3 --logto /root/RecruitmentAuto/log/recruitment.log --log-maxsize 1024000  --ini /root/RecruitmentAuto/recruitment_uwsgi.ini
+Restart=always
+KillSignal=SIGQUIT
+StandardError=syslog
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
